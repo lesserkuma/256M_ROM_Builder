@@ -1,6 +1,6 @@
 # 256M ROM Builder (by Lesserkuma)
 
-A tool for compiling a multi-game ROM compilation that can be written to X-in-1 reproduction cartridges.
+A tool for compiling a multi-game ROM compilation that can be written to X-in-1 Game Boy reproduction cartridges.
 
 The binary for Windows is available in the [Releases](https://github.com/lesserkuma/256M_ROM_Builder/releases) section.
 
