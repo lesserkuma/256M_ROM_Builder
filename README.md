@@ -10,7 +10,7 @@ Place your ROM files into the `roms` directory. The game title that is displayed
 
 To change the menu title, add it as a parameter to the command line, like so: `256M_ROM_Builder.exe "Menu Title Here"`.
 
-<img src="https://raw.githubusercontent.com/lesserkuma/256M_ROM_Builder/master/.github/screen.png" alt="" width="400">
+<img src="https://raw.githubusercontent.com/lesserkuma/256M_ROM_Builder/master/.github/screen.png" alt="" />
 
 ## Compatibility
 Tested repro cartridges:
