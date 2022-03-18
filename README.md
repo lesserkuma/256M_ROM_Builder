@@ -8,7 +8,9 @@ The binary for Windows is available in the [Releases](https://github.com/lesserk
 
 Place your ROM files into the `roms` directory. The game title that is displayed in the menu will be read from the ROM headers. If you want to manually name the games for the menu, use this filename format: `#00 Name.gb`. If you want to manually disable SRAM access for a ROM, add another `#` character after the name, e.g. `#14 Mario Land 2#.gb`.
 
-To change the menu title, call the software like so: `256M_ROM_Builder.exe "Menu Title Here"`.
+To change the menu title, add it as a parameter to the command line, like so: `256M_ROM_Builder.exe "Menu Title Here"`.
+
+<img src="https://raw.githubusercontent.com/lesserkuma/256M_ROM_Builder/master/.github/screen.png" alt="" width="400">
 
 ## Compatibility
 Tested repro cartridges:
