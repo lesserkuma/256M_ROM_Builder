@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# 256M ROM Builder
+# Author: Lesserkuma (github.com/lesserkuma)
+
 import math, glob, re, os, datetime, hashlib, time, sys, argparse
 
 # Configuration
