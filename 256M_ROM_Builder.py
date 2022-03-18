@@ -1,10 +1,8 @@
-import math, glob, re, os, datetime, hashlib, time, sys
+import math, glob, re, os, datetime, hashlib, time, sys, argparse
 
 # Configuration
+app_version = "0.2"
 rom_title = "256M COLLECTION"
-menu_title = "256M COLLECTION"
-output_file = "output.gbc"
-info_table_sort = 1
 
 ################################
 
@@ -17,6 +15,19 @@ addr_menu_text = 0x4EA0
 max_roms = 108
 roms_per_page = 11
 
+# Initialization
+rom_map = {}
+roms = []
+roms_added = 0
+uses_sram = False
+output = bytearray([0xFF] * 0x2000000)
+sram_slots_used = []
+sram_addr = []
+for i in range(0, 0x2000000, 0x200000): sram_addr.append(i)
+now = datetime.datetime.now()
+log = ""
+
+class ArgParseCustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter): pass
 def FixChecksums(buffer):
 	checksum = 0
 	for i in range(0x134, 0x14D):
@@ -31,27 +42,36 @@ def FixChecksums(buffer):
 	buffer[0x14F] = checksum & 0xFF
 	return buffer
 
-# Initialization
-rom_map = {}
-roms = []
-roms_added = 0
-uses_sram = False
-output = bytearray([0xFF] * 0x2000000)
-sram_slots_used = []
-sram_addr = []
-for i in range(0, 0x2000000, 0x200000): sram_addr.append(i)
+def lprint(*args, **kwargs):
+	global log
+	s = format(" ".join(map(str, args)))
+	print("{:s}".format(s))
+	log += "{:s}\n".format(s)
 
-print("\n256M ROM Builder v0.1\nby Lesserkuma\n")
+################################
+
+print("")
+lprint("256M ROM Builder v{:s}\nby Lesserkuma\n".format(app_version))
+parser = argparse.ArgumentParser(formatter_class=ArgParseCustomFormatter)
+parser.add_argument("--output", help="sets the output filename", default="output.gbc")
+parser.add_argument("--title", help="sets a custom menu title", type=str.upper, default=rom_title)
+parser.add_argument("--split", help="splits output files into 8 MB parts", action="store_true", default=False)
+parser.add_argument("--toc-sort", help="sets what the table of contents is ordered by", choices=["index", "offset"], type=str.lower, default="index")
+parser.add_argument("--no-wait", help="don’t wait for user input when finished", action="store_true", default=False)
+args = parser.parse_args()
+menu_title = args.title
+output_file = args.output
+info_table_sort = args.toc_sort
+
 # Load Menu ROM
 if not os.path.exists("menu.gbc"):
-	print("Error: Menu ROM file not found!")
+	lprint("Error: Menu ROM file not found!")
 	time.sleep(1)
 	sys.exit(1)
 with open("menu.gbc", "rb") as f: menu = bytearray(f.read())
-if len(sys.argv) > 1:
-	menu_title = sys.argv[1]
-	menu_title = re.sub(r"[^A-Z0-9 ]+", "", menu_title.upper()).strip()[:16]
-	print("Setting menu title to: {:s}\n".format(menu_title))
+menu_title = re.sub(r"[^A-Z0-9 ]+", "", menu_title.upper()).strip()[:16]
+if menu_title != rom_title:
+	lprint("Setting menu title to: {:s}\n".format(menu_title))
 output[0:0x8000] = menu
 
 # Load Game ROMs
@@ -98,7 +118,7 @@ for file in files:
 	info["rom"] = buffer
 	roms.append(info)
 
-print("Found {:d} ROM(s)".format(len(roms)))
+lprint("Found {:d} ROM(s)".format(len(roms)))
 # Re-order loaded ROMs by size
 roms.sort(key=lambda item: item["size"])
 
@@ -121,8 +141,8 @@ for rom in roms:
 				sram_slots_used.append(sram_slot)
 				break
 		if "offset" not in rom:
-			print("Error: Can’t add {:s} because no SRAM slots are available or it would exceed the maximum size of the compilation".format(rom["title"]))
-print("\nAdded {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)))
+			lprint("Error: Can’t add {:s} because no SRAM slots are available or it would exceed the maximum size of the compilation".format(rom["title"]))
+lprint("\nAdded {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)))
 
 # Now fill up the rest
 for rom in roms:
@@ -139,8 +159,8 @@ for rom in roms:
 				if pos > 0x2000000:
 					break
 		if "offset" not in rom:
-			print("Error: Can’t add {:s} (size: 0x{:X}) because it exceeds the maximum size of the compilation".format(rom["filename"], rom["size"]))
-print("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)))
+			lprint("Error: Can’t add {:s} (size: 0x{:X}) because it exceeds the maximum size of the compilation".format(rom["filename"], rom["size"]))
+lprint("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)))
 time.sleep(0.1)
 
 # Patch Menu ROM
@@ -171,7 +191,7 @@ for k, v in rom_map.items():
 	menu[pos+1] = v7002 # multirom bank
 	menu[pos+2] = v7001 # rom size
 	menu[pos+3] = v7000 # rom offset in current multirom bank
-	if info_table_sort == 2:
+	if info_table_sort == "offset":
 		table_index = v["offset"]
 	else:
 		table_index = v["index"]
@@ -179,12 +199,13 @@ for k, v in rom_map.items():
 	table_lines[table_index] = table_line
 	roms_added += 1
 	if roms_added >= max_roms: break
-print("\nGenerated Menu Configuration:\n")
-print("  # | Title            | Offset    | Size     | Parameters  | SRAM Slot    ")
-print("----+------------------+-----------+----------+-------------+--------------")
+lprint("\n    | Title            | Offset    | Size     | Parameters  | SRAM Slot    ")
+lprint("----+------------------+-----------+----------+-------------+--------------")
 table_lines = dict(sorted(table_lines.items()))
 for table_line in table_lines.values():
-	print(table_line)
+	lprint(table_line)
+#lprint("\nGenerated Menu Configuration:\n\n{:s}".format(text))
+#text = "256M ROM Builder v{:s}\nby Lesserkuma\n\nBuild date: {:s}\n\n{:s}".format(app_version, now.strftime('%Y-%m-%d %H:%M:%S'), text)
 
 menu[addr_num_items] = roms_added & 0xFF
 menu[addr_num_pages] = (math.ceil(roms_added / roms_per_page) - 1) & 0xFF
@@ -193,7 +214,7 @@ rom_title = rom_title.strip()
 menu[0x134:0x134+15] = rom_title.encode("ascii").ljust(15, b"\x00")[:15]
 created_string = \
 "256M ROM Builder" \
-"by LK\x00\x01\x00{:s}".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+"by LK\x00\x01\x00{:s}".format(now.strftime('%Y-%m-%d %H:%M:%S'))
 menu[0x150:0x150+len(created_string)] = created_string.encode("ascii")
 output[0:len(menu)] = menu
 output = output.strip(b"\xFF")
@@ -220,7 +241,20 @@ output = FixChecksums(output)
 # Pad to final ROM size
 output = output + bytearray([0xFF] * (rom_size - len(output)))
 
-# Write Output Buffer to File
-with open(output_file, "wb") as f: f.write(output)
-print("\nDone! Compilation saved to {:s}".format(output_file))
-time.sleep(1)
+# Write Output to File(s)
+(name, ext) = os.path.splitext(output_file)
+lprint("\nBuild date: {:s}\n".format(now.strftime('%Y-%m-%d %H:%M:%S')))
+if args.split is True:
+	for i in range(0, 4):
+		pos = 0x800000 * i
+		if pos >= len(output): break
+		output_file = "{:s}_part{:d}{:s}".format(name, i+1, ext)
+		with open(output_file, "wb") as f: f.write(output[pos:pos+0x800000])
+		lprint("Compilation part {:d} saved to {:s}".format(i+1, output_file))
+else:
+	with open(output_file, "wb") as f: f.write(output)
+	lprint("Compilation saved to {:s}".format(output_file))
+
+log += "\nArgument List: {:s}\n".format(str(sys.argv))
+with open("{:s}.txt".format(name), "w") as f: f.write(log)
+if not args.no_wait: input("\nPress ENTER to exit.\n")
