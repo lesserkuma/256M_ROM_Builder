@@ -34,6 +34,7 @@ now = datetime.datetime.now()
 log = ""
 v7001_values = {0x800000:0x00, 0x400000:0x80, 0x200000:0xC0, 0x100000:0xE0, 0x80000:0xF0, 0x40000:0xF8, 0x20000:0xFC, 0x10000:0xFE, 0x8000:0xFF}
 sram_sizes = [0, 0x800, 0x2000, 0x8000]
+logodata = bytearray(0x30)
 
 class ArgParseCustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter): pass
 def FixChecksums(buffer):
@@ -131,6 +132,7 @@ if args.export is False and args.import_sram is False:
 			else:
 				game_title = bytearray(buffer[0x134:0x144]).decode("ascii", "replace")
 		game_title = re.sub(r"[^A-Z0-9 ]+", "", game_title.upper()).strip()
+		logodata = buffer[0x104:0x134]
 		
 		# Pad ROM to next power of 2 if trimmed
 		rom_size = len(buffer)
@@ -268,7 +270,7 @@ if args.export is False and args.import_sram is False:
 	created_string = "{:s}".format(now.strftime('%Y-%m-%d %H:%M:%S'))
 	menu[0x168:0x168+len(created_string)] = created_string.encode("ascii")
 	menu[addr_menu_title:addr_menu_title+16] = menu_title.center(16).encode("ascii")[:16]
-
+	menu[0x104:0x134] = logodata
 	output[0:len(menu)] = menu
 	output = output.strip(b"\xFF")
 
