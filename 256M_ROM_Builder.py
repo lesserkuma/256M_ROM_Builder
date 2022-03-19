@@ -128,7 +128,7 @@ for file in files:
 	info["title"] = game_title
 	info["sram_size"] = sram_size
 	info["size"] = len(buffer)
-	info["header_sha1"] = hashlib.sha1(buffer[0x100:0x150]).digest()
+	info["hash"] = hashlib.sha1(buffer[0:0x200]).digest()
 	buffer = FixChecksums(buffer)
 	info["rom"] = buffer
 	roms.append(info)
@@ -234,7 +234,7 @@ menu[0x150:0x150+len(created_string)] = created_string.encode("ascii")
 c = 0
 for k, v in rom_map.items():
 	if not "sram_id" in v: continue
-	temp = {"index":v["index"], "offset":v["offset"], "size":v["size"], "sram_size":v["sram_size"], "sram_id":v["sram_id"], "hash":v["header_sha1"][:16]}
+	temp = {"index":v["index"], "offset":v["offset"], "size":v["size"], "sram_size":v["sram_size"], "sram_id":v["sram_id"], "hash":v["hash"][:16]}
 	keys = list(temp.keys())
 	values = []
 	for key in keys: values.append(temp[key])
