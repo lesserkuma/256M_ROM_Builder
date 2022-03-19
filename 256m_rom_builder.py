@@ -5,7 +5,7 @@
 import math, glob, re, os, datetime, time, hashlib, time, sys, argparse, struct
 
 # Configuration
-app_version = "0.5"
+app_version = "0.6"
 default_menu_title = "256M COLLECTION"
 default_file = "256MROMSET_<CODE>.gbc"
 
@@ -200,6 +200,11 @@ if args.export is False and args.import_sram is False:
 				lprint("Error: Can’t add {:s} (size: 0x{:X}) because it exceeds the maximum size of the compilation".format(rom["filename"], rom["size"]))
 	lprint("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)))
 
+	if len(rom_map) == 0:
+		lprint("\nPlease place ROM files into the “roms” directory.")
+		if not args.no_wait: input("\nPress ENTER to exit.\n")
+		sys.exit(1)
+
 	# Patch Menu ROM
 	roms_added = 0
 	table_lines = {}
@@ -244,7 +249,7 @@ if args.export is False and args.import_sram is False:
 		table_lines = dict(sorted(table_lines.items()))
 		for table_line in table_lines.values():
 			lprint(table_line)
-
+	
 	# Add some metadata to menu ROM
 	c = 0
 	for k, v in rom_map.items():
@@ -305,14 +310,14 @@ if args.export is False and args.import_sram is False:
 			if pos >= len(output): break
 			output_file = "{:s}_part{:d}{:s}".format(name, i+1, ext)
 			with open(output_file, "wb") as f: f.write(output[pos:pos+0x800000])
-			lprint("Compilation part {:d} saved to {:s}".format(i+1, output_file))
+			lprint("Compilation part {:d} saved to “{:s}”".format(i+1, output_file))
 	else:
 		with open(output_file, "wb") as f: f.write(output)
-		lprint("Compilation ROM saved to {:s}".format(output_file))
+		lprint("Compilation ROM saved to “{:s}”".format(output_file))
 		if output_sram != bytearray([0x00] * 0x80000):
 			fn = os.path.splitext(output_file)[0] + ".sav"
 			with open(fn, "wb") as f: f.write(output_sram)
-			lprint("Compilation SRAM saved to {:s}".format(fn))
+			lprint("Compilation SRAM saved to “{:s}”".format(fn))
 
 ##############################
 else: # ROM/SRAM Export/Import
@@ -413,7 +418,7 @@ else: # ROM/SRAM Export/Import
 		
 		if not os.path.exists(dir):
 			if args.import_sram:
-				lprint("Error: No files found for importing!\nWill now instead export files to: ./{:s}\nYou can then replace the individual .sav files and run the import again.".format(dir))
+				lprint("Error: No files found for importing!\nWill now instead export files to the “{:s}” directory.\nYou can then replace the individual .sav files and run the import again.".format(dir))
 				args.export = True
 				args.import_sram = False
 				try:
@@ -424,17 +429,17 @@ else: # ROM/SRAM Export/Import
 		sram_file_game = "{:s}/#{:03d} {:s}.sav".format(dir, data["index"]+1, data["title"])
 		rom_file_game = "{:s}/#{:03d} {:s}{:s}{:s}".format(dir, data["index"]+1, data["title"], "#" if no_sram else "", ext)
 		if args.export:
-			lprint("Exporting ROM #{:d} to {:s}".format(data["index"]+1, rom_file_game))
+			lprint("Exporting ROM #{:d} to “{:s}”".format(data["index"]+1, rom_file_game))
 			with open(rom_file_game, "wb") as f: f.write(compilation[data["offset"]:data["offset"]+data["size"]])
 			if sram is not None and "sram_id" in data:
-				lprint("Exporting SRAM #{:d} to {:s}".format(data["sram_id"], sram_file_game))
+				lprint("Exporting SRAM #{:d} to “{:s}”".format(data["sram_id"], sram_file_game))
 				with open(sram_file_game, "wb") as f: f.write(sram[data["sram_address"]:data["sram_address"]+data["sram_size"]])
 		elif args.import_sram:
 			if not os.path.exists(sram_file_game): continue
 			with open(sram_file_game, "rb") as f: sram_game = f.read(data["sram_size"])
 			sram[data["sram_address"]:data["sram_address"]+data["sram_size"]] = sram_game
 			with open(file_sram, "wb") as f: f.write(sram)
-			lprint("Importing {:s} into SRAM #{:d}".format(sram_file_game, data["sram_id"]))
+			lprint("Importing “{:s}” into SRAM #{:d}".format(sram_file_game, data["sram_id"]))
 
 ################################
 if not args.no_log:
