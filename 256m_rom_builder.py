@@ -312,8 +312,8 @@ if args.export is False and args.import_sram is False:
 			with open(fn, "wb") as f: f.write(output_sram)
 			lprint("Compilation SRAM saved to {:s}".format(fn))
 
-################################
-else: # ROM/SRAM Extract/Inject
+##############################
+else: # ROM/SRAM Export/Import
 	file_compilation = args.file
 	fn = os.path.splitext(args.file)[0]
 	dir = fn
@@ -411,7 +411,7 @@ else: # ROM/SRAM Extract/Inject
 		
 		if not os.path.exists(dir):
 			if args.import_sram:
-				lprint("Error: No files found for importing!\nWill now instead extract files to: ./{:s}\nYou can then replace the individual .sav files and run the import again.".format(dir))
+				lprint("Error: No files found for importing!\nWill now instead export files to: ./{:s}\nYou can then replace the individual .sav files and run the import again.".format(dir))
 				args.export = True
 				args.import_sram = False
 				try:
