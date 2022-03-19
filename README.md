@@ -6,25 +6,22 @@ The binary for Windows is available in the [Releases](https://github.com/lesserk
 
 ## Usage
 
-Place your ROM files into the `roms` directory. The game title that is displayed in the menu will be read from the ROM headers. If you want to manually name the games for the menu, use this filename format: `#00 Name.gb`. If you want to manually disable SRAM access for a ROM, add another `#` character after the name, e.g. `#08 Mario Land 2#.gb`.
+Place your ROM files into the `roms` directory. The game title that is displayed in the menu will be read from the ROM headers. If you want to manually name the games for the menu, use this filename format: `#000 Name.gb`. If you want to manually disable SRAM access for a ROM, add another `#` character after the name, e.g. `#008 Mario Land 2#.gb`. If you also put save data files into the roms `directory`, a full 512 KB file will also be generated for the cartridge.
 
 The default output filename contains a unique ROM code. This is to make it easier to assign save data backups to the correct compilation ROM.
 
 ### Parameters
 
-No command line arguments are required, however there are some optional ones that can tweak some things:
+No command line arguments are required for creating a compilation, however there are some optional ones that can tweak some things:
 
 ```
---output "OUTPUT"          sets the output filename
-                           (<CODE> will be replaced by a unique value)
-						   (default: "256M COMPO_<CODE>.gbc")
---title "TITLE"            sets a custom menu title
-                           (default: "256M COLLECTION")
+--title TITLE              sets a custom menu title
 --split                    splits output files into 8 MB parts
---toc-sort {index,offset}  sets what the table of contents is ordered by
-                           (default: index)
+--toc {index,offset,hide}  changes the order of the table of contents (default: index)
 --no-wait                  don’t wait for user input when finished
---write-log                write the program’s output into a text file
+--no-log                   don’t write a log file
+--export                   export individual SRAM files and ROM files from a previous compilation
+--import-sram              import individual SRAM files into full 512 KB SRAM file of the given compilation
 ```
 
 ## Compatibility

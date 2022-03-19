@@ -66,9 +66,9 @@ parser.add_argument("--title", help="sets a custom menu title", type=str.upper, 
 parser.add_argument("--split", help="splits output files into 8 MB parts", action="store_true", default=False)
 parser.add_argument("--toc", help="changes the order of the table of contents", choices=["index", "offset", "hide"], type=str.lower, default="index")
 parser.add_argument("--no-wait", help="don’t wait for user input when finished", action="store_true", default=False)
-parser.add_argument("--write-log", help="write the program’s output into a text file", action="store_true", default=False)
+parser.add_argument("--no-log", help="don’t write a log file", action="store_true", default=False)
 parser.add_argument("--export", help="export individual SRAM files and ROM files from a previous compilation", action="store_true", default=False)
-parser.add_argument("--import-sram", help="import individual SRAM files into a full 512 KB SRAM file", action="store_true", default=False)
+parser.add_argument("--import-sram", help="import individual SRAM files into full 512 KB SRAM file of the given compilation", action="store_true", default=False)
 parser.add_argument("file", help="sets the file name of the compilation ROM", nargs='?', default=default_file)
 args = parser.parse_args()
 menu_title = args.title
@@ -218,7 +218,9 @@ if args.export is False and args.import_sram is False:
 			v7002 += 0x90
 			sram_id = math.floor(v["offset"] / 0x200000)
 			rom_map[k]["sram_id"] = sram_id
-			sram_id = "{:d} (0x{:05X}~)".format(sram_id, sram_id * 0x8000)
+			sram_id = "{:d}".format(sram_id)
+			if "sram" in v:
+				sram_id += " (imported)"
 		else:
 			v7002 += 0xF0
 			sram_id = ""
@@ -255,16 +257,18 @@ if args.export is False and args.import_sram is False:
 		menu[pos:pos+0x20] = buffer
 		c += 1
 
-	rom_code = "{:s}".format(hashlib.sha1(menu[0x150:0x8000]).hexdigest()[:4]).upper()
-	output_file = output_file.replace("<CODE>", rom_code)
 	menu[addr_num_items] = roms_added & 0xFF
 	menu[addr_num_pages] = (math.ceil(roms_added / roms_per_page) - 1) & 0xFF
-	menu[addr_menu_title:addr_menu_title+16] = menu_title.center(16).encode("ascii")[:16]
-	menu[0x13F:0x13F+4] = rom_code.encode("ascii")
-	created_string = \
+	signature = \
 	"256M ROM Builder" \
-	"by LK\x00\x02\x00{:s}".format(now.strftime('%Y-%m-%d %H:%M:%S'))
-	menu[0x150:0x150+len(created_string)] = created_string.encode("ascii")
+	"by LK\x00\x02\x00"
+	menu[0x150:0x150+len(signature)] = signature.encode("ascii")
+	rom_code = "{:s}".format(hashlib.sha1(menu[0x150:0x8000]).hexdigest()[:4]).upper()
+	output_file = output_file.replace("<CODE>", rom_code)
+	menu[0x13F:0x13F+4] = rom_code.encode("ascii")
+	created_string = "{:s}".format(now.strftime('%Y-%m-%d %H:%M:%S'))
+	menu[0x168:0x168+len(created_string)] = created_string.encode("ascii")
+	menu[addr_menu_title:addr_menu_title+16] = menu_title.center(16).encode("ascii")[:16]
 
 	output[0:len(menu)] = menu
 	output = output.strip(b"\xFF")
@@ -308,11 +312,6 @@ if args.export is False and args.import_sram is False:
 			fn = os.path.splitext(output_file)[0] + ".sav"
 			with open(fn, "wb") as f: f.write(output_sram)
 			lprint("Compilation SRAM saved to {:s}".format(fn))
-	
-	log += "\nArgument List: {:s}\n".format(str(sys.argv))
-	if args.write_log is True:
-		with open("{:s}.txt".format(name), "w") as f: f.write(log)
-	if not args.no_wait: input("\nPress ENTER to exit.\n")
 
 ################################
 else: # ROM/SRAM Extract/Inject
@@ -426,3 +425,10 @@ else: # ROM/SRAM Extract/Inject
 			sram[data["sram_address"]:data["sram_address"]+data["sram_size"]] = sram_game
 			with open(file_sram, "wb") as f: f.write(sram)
 			lprint("Importing {:s} into SRAM #{:d}".format(sram_file_game, data["sram_id"]))
+
+################################
+if not args.no_log:
+	log += "\nArgument List: {:s}\n".format(str(sys.argv[1:]))
+	log += "\n################################\n\n"
+	with open("log.txt", "a") as f: f.write(log)
+if not args.no_wait: input("\nPress ENTER to exit.\n")
