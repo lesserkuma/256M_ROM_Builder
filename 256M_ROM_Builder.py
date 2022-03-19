@@ -2,10 +2,10 @@
 # 256M ROM Builder
 # Author: Lesserkuma (github.com/lesserkuma)
 
-import math, glob, re, os, datetime, hashlib, time, sys, argparse
+import math, glob, re, os, datetime, hashlib, time, sys, argparse, struct
 
 # Configuration
-app_version = "0.2"
+app_version = "0.3"
 rom_title = "256M COLLECTION"
 
 ################################
@@ -30,6 +30,8 @@ sram_addr = []
 for i in range(0, 0x2000000, 0x200000): sram_addr.append(i)
 now = datetime.datetime.now()
 log = ""
+v7001_values = {0x800000:0x00, 0x400000:0x80, 0x200000:0xC0, 0x100000:0xE0, 0x80000:0xF0, 0x40000:0xF8, 0x20000:0xFC, 0x10000:0xFE, 0x8000:0xFF}
+sram_sizes = [0, 0x800, 0x2000, 0x8000]
 
 class ArgParseCustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter): pass
 def FixChecksums(buffer):
@@ -87,7 +89,15 @@ for file in files:
 	if len(buffer) > 0x800000: continue
 	if (hashlib.sha1(buffer[0x104:0x134]).digest() != bytearray([ 0x07, 0x45, 0xFD, 0xEF, 0x34, 0x13, 0x2D, 0x1B, 0x3D, 0x48, 0x8C, 0xFB, 0xDF, 0x03, 0x79, 0xA3, 0x9F, 0xD5, 0x4B, 0x4C ])): continue
 	
-	has_sram = (buffer[0x149] > 0) or (buffer[0x147] == 0x06)
+	if buffer[0x149] > 0:
+		if buffer[0x149] < len(sram_sizes):
+			sram_size = sram_sizes[buffer[0x149]]
+		else:
+			sram_size = 0x8000
+	elif buffer[0x147] == 0x06: # MBC2
+		sram_size = 512
+	else:
+		sram_size = 0
 	
 	fn = os.path.split(file)[1]
 	fn = os.path.splitext(fn)[0]
@@ -96,7 +106,7 @@ for file in files:
 		game_title = m.group(1)[:16]
 		if game_title.endswith("#"):
 			game_title = game_title[:-1]
-			has_sram = False
+			sram_size = 0
 		game_title = game_title[:16]
 	else:
 		if buffer[0x143] in (0x00, 0x80, 0xC0):
@@ -116,7 +126,7 @@ for file in files:
 	info["index"] = len(roms)
 	info["filename"] = file
 	info["title"] = game_title
-	info["has_sram"] = has_sram
+	info["sram_size"] = sram_size
 	info["size"] = len(buffer)
 	buffer = FixChecksums(buffer)
 	info["rom"] = buffer
@@ -131,7 +141,7 @@ roms.sort(key=lambda item: item["size"])
 # - There also can only be one SRAM-enabled ROM every 0x200000 bytes
 # SRAM-enabled ROMs go first
 for rom in roms:
-	if rom["has_sram"] is True:
+	if rom["sram_size"] > 0:
 		sram_addr[0] = rom["size"]
 		for j in range(0, len(sram_addr)):
 			pos = sram_addr[j]
@@ -150,8 +160,8 @@ lprint("\nAdded {:d} ROM(s) that use SRAM to the compilation".format(len(sram_sl
 
 # Now fill up the rest
 for rom in roms:
-	pos = rom["size"]
-	if rom["has_sram"] is False:
+	if rom["sram_size"] == 0:
+		pos = rom["size"]
 		while True:
 			if pos not in rom_map and output[pos:pos+rom["size"]] == bytearray([0xFF] * rom["size"]):
 				rom["offset"] = pos
@@ -168,7 +178,6 @@ lprint("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(ro
 time.sleep(0.1)
 
 # Patch Menu ROM
-v7001_values = {0x800000:0x00, 0x400000:0x80, 0x200000:0xC0, 0x100000:0xE0, 0x80000:0xF0, 0x40000:0xF8, 0x20000:0xFC, 0x10000:0xFE, 0x8000:0xFF}
 roms_added = 0
 table_lines = {}
 rom_map = dict(sorted(rom_map.items(), key=lambda item: item[1]["index"]))
@@ -183,9 +192,10 @@ for k, v in rom_map.items():
 	if v7002 == 2: x = 0x10
 	if v7002 == 3: x = 0x11
 
-	if v["has_sram"]:
+	if v["sram_size"] > 0:
 		v7002 += 0x90
 		sram_id = math.floor(v["offset"] / 0x200000)
+		rom_map[k]["sram_id"] = sram_id
 		sram_id = "{:d} (0x{:05X}~)".format(sram_id, sram_id * 0x8000)
 	else:
 		v7002 += 0xF0
@@ -208,8 +218,6 @@ lprint("----+------------------+-----------+----------+-------------+-----------
 table_lines = dict(sorted(table_lines.items()))
 for table_line in table_lines.values():
 	lprint(table_line)
-#lprint("\nGenerated Menu Configuration:\n\n{:s}".format(text))
-#text = "256M ROM Builder v{:s}\nby Lesserkuma\n\nBuild date: {:s}\n\n{:s}".format(app_version, now.strftime('%Y-%m-%d %H:%M:%S'), text)
 
 menu[addr_num_items] = roms_added & 0xFF
 menu[addr_num_pages] = (math.ceil(roms_added / roms_per_page) - 1) & 0xFF
@@ -220,6 +228,20 @@ created_string = \
 "256M ROM Builder" \
 "by LK\x00\x01\x00{:s}".format(now.strftime('%Y-%m-%d %H:%M:%S'))
 menu[0x150:0x150+len(created_string)] = created_string.encode("ascii")
+
+# Add some metadata to menu ROM
+c = 0
+for k, v in rom_map.items():
+	if not "sram_id" in v: continue
+	temp = {"index":v["index"], "offset":v["offset"], "size":v["size"], "sram_size":v["sram_size"], "sram_id":v["sram_id"]}
+	keys = list(temp.keys())
+	values = []
+	for key in keys: values.append(temp[key])
+	buffer = struct.pack("=HIIIH", *values)
+	pos = 0x1000 + (c * 0x10)
+	menu[pos:pos+0x10] = buffer
+	c += 1
+
 output[0:len(menu)] = menu
 output = output.strip(b"\xFF")
 
