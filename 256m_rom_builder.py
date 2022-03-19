@@ -5,9 +5,9 @@
 import math, glob, re, os, datetime, time, hashlib, time, sys, argparse, struct
 
 # Configuration
-app_version = "0.4"
+app_version = "0.5"
 default_menu_title = "256M COLLECTION"
-default_file = "256M COMPO_<CODE>.gbc"
+default_file = "256MROMSET_<CODE>.gbc"
 
 ################################
 
@@ -61,7 +61,6 @@ def lprint(*args, **kwargs):
 print("")
 lprint("256M ROM Builder v{:s}\nby Lesserkuma\n".format(app_version))
 parser = argparse.ArgumentParser()
-#parser.add_argument("--output", help="sets the output filename (<CODE> will be replaced by a unique value)", default="256M COMPO_<CODE>.gbc")
 parser.add_argument("--title", help="sets a custom menu title", type=str.upper, default=default_menu_title)
 parser.add_argument("--split", help="splits output files into 8 MB parts", action="store_true", default=False)
 parser.add_argument("--toc", help="changes the order of the table of contents", choices=["index", "offset", "hide"], type=str.lower, default="index")
@@ -315,40 +314,41 @@ if args.export is False and args.import_sram is False:
 
 ################################
 else: # ROM/SRAM Extract/Inject
-	file_compo = args.file
+	file_compilation = args.file
 	fn = os.path.splitext(args.file)[0]
+	dir = fn
 	file_sram = "{:s}.sav".format(fn)
-	compo = None
+	compilation = None
 	sram = None
 	
 	# Load files
-	if file_compo == default_file:
+	if file_compilation == default_file:
 		parser.print_help()
 		lprint("\nError: Compilation ROM file must be set via command line argument!")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
-	elif not os.path.exists(file_compo):
+	elif not os.path.exists(file_compilation):
 		lprint("Error: Compilation ROM file not found!")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 	else:
-		with open(file_compo, "rb") as f:
-			compo = bytearray(f.read())
+		with open(file_compilation, "rb") as f:
+			compilation = bytearray(f.read())
 	
-	compo_version = compo[0x166]
-	if compo_version < 1:
+	menu_version = compilation[0x14C]
+	if menu_version < 1:
 		lprint("Error: This Compilation ROM version is too old.")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
-	signature = compo[0x150:0x165].decode("ascii", "ignore")
+	signature = compilation[0x150:0x165].decode("ascii", "ignore")
 	if signature != "256M ROM Builderby LK":
 		lprint("Error: Not a valid Compilation ROM. Please merge any split ROMs first.")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
-	build_date = compo[0x168:0x17B].decode("ascii", "ignore")
-	rom_code = compo[0x13F:0x143].decode("ascii", "ignore")
+	build_date = compilation[0x168:0x17B].decode("ascii", "ignore")
+	rom_code = compilation[0x13F:0x143].decode("ascii", "ignore")
 	lprint("Compilation ROM loaded.")
-	lprint("\nVersion: {:d}\nBuild date: {:s}\nROM code: {:s}".format(compo_version, build_date, rom_code))
+	lprint("\nMenu Version: {:d}\nBuild date: {:s}\nROM code: {:s}".format(menu_version, build_date, rom_code))
 
 	if os.path.exists(file_sram):
 		with open(file_sram, "rb") as f:
@@ -365,17 +365,17 @@ else: # ROM/SRAM Extract/Inject
 	c = 0
 	sram_roms = []
 	print("")
-	for c in range(0, compo[addr_num_items]):
+	for c in range(0, compilation[addr_num_items]):
 		pos = addr_menu_text + (c * 16)
 		data = {}
-		if compo[pos:pos+16] == bytearray([0xFF] * 16): break
+		if compilation[pos:pos+16] == bytearray([0xFF] * 16): break
 		data["index"] = c
-		data["title"] = compo[pos:pos+16].decode("ascii", "ignore").strip()
+		data["title"] = compilation[pos:pos+16].decode("ascii", "ignore").strip()
 		pos = addr_menu_param + (c * 4)
-		x = compo[pos+0]
-		v7002 = compo[pos+1]
-		v7001 = compo[pos+2]
-		v7000 = compo[pos+3]
+		x = compilation[pos+0]
+		v7002 = compilation[pos+1]
+		v7001 = compilation[pos+2]
+		v7000 = compilation[pos+3]
 		data["offset"] = (v7000 * 0x8000) + ((v7002 & 0b11) * 0x800000)
 		size = [k for (k, v) in v7001_values.items() if v == v7001]
 		if len(size) != 1: continue
@@ -384,10 +384,10 @@ else: # ROM/SRAM Extract/Inject
 			data["sram_id"] = math.floor(data["offset"] / 0x200000)
 		
 		no_sram = ""
-		if data["offset"] >= len(compo):
+		if data["offset"] >= len(compilation):
 			lprint("{:s} not found inside {:s}.".format(data["title"], args.file))
 			continue
-		buffer = compo[data["offset"]:data["offset"]+0x150]
+		buffer = compilation[data["offset"]:data["offset"]+0x150]
 		if buffer[0x149] > 0:
 			if buffer[0x149] < len(sram_sizes):
 				sram_size = sram_sizes[buffer[0x149]]
@@ -409,13 +409,21 @@ else: # ROM/SRAM Extract/Inject
 		elif sram_size > 0:
 			no_sram = "#"
 		
-		dir = "compo_{:s}".format(rom_code)
-		if not os.path.exists(dir): os.mkdir(dir)
+		if not os.path.exists(dir):
+			if args.import_sram:
+				lprint("Error: No files found for importing!\nWill now instead extract files to: ./{:s}\nYou can then replace the individual .sav files and run the import again.".format(dir))
+				args.export = True
+				args.import_sram = False
+				try:
+					input("\nPress ENTER to continue or Ctrl+C to cancel.\n")
+				except KeyboardInterrupt:
+					sys.exit(0)
+			os.mkdir(dir)
 		sram_file_game = "{:s}/#{:03d} {:s}.sav".format(dir, data["index"]+1, data["title"])
 		rom_file_game = "{:s}/#{:03d} {:s}{:s}{:s}".format(dir, data["index"]+1, data["title"], "#" if no_sram else "", ext)
 		if args.export:
 			lprint("Exporting ROM #{:d} to {:s}".format(data["index"]+1, rom_file_game))
-			with open(rom_file_game, "wb") as f: f.write(compo[data["offset"]:data["offset"]+data["size"]])
+			with open(rom_file_game, "wb") as f: f.write(compilation[data["offset"]:data["offset"]+data["size"]])
 			if sram is not None and "sram_id" in data:
 				lprint("Exporting SRAM #{:d} to {:s}".format(data["sram_id"], sram_file_game))
 				with open(sram_file_game, "wb") as f: f.write(sram[data["sram_address"]:data["sram_address"]+data["sram_size"]])
