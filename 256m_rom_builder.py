@@ -66,8 +66,8 @@ parser.add_argument("--split", help="splits output files into 8 MB parts", actio
 parser.add_argument("--toc", help="changes the order of the table of contents", choices=["index", "offset", "hide"], type=str.lower, default="index")
 parser.add_argument("--no-wait", help="don’t wait for user input when finished", action="store_true", default=False)
 parser.add_argument("--no-log", help="don’t write a log file", action="store_true", default=False)
-parser.add_argument("--export", help="export individual SRAM files and ROM files from a previous compilation", action="store_true", default=False)
-parser.add_argument("--import-sram", help="import individual SRAM files into full 512 KB SRAM file of the given compilation", action="store_true", default=False)
+parser.add_argument("--export", help="export individual SRAM files and ROM files from an existing compilation", action="store_true", default=False)
+parser.add_argument("--import-sram", help="import individual SRAM files into a 512 KB SRAM compilation file", action="store_true", default=False)
 parser.add_argument("file", help="sets the file name of the compilation ROM", nargs='?', default=default_file)
 args = parser.parse_args()
 menu_title = args.title

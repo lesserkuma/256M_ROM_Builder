@@ -6,9 +6,9 @@ The binary for Windows is available in the [Releases](https://github.com/lesserk
 
 ## Usage
 
-Place your ROM files into the `roms` directory. The game title that is displayed in the menu will be read from the ROM headers. If you want to manually name the games for the menu, use this filename format: `#000 Name.gb`. If you want to manually disable SRAM access for a ROM, add another `#` character after the name, e.g. `#008 Mario Land 2#.gb`. If you also put save data files into the roms `directory`, a full 512 KB file will also be generated for the cartridge.
+Place your ROM files into the `roms` directory. The game title that is displayed in the menu will be read from the ROM headers. If you want to manually name the games for the menu, use this filename format: `#000 Name.gb`. If you want to manually disable SRAM access for a ROM, add another `#` character after the name, e.g. `#008 Mario Land 2#.gb`. If you also put save data files into the roms `directory`, a full 512 KB .sav file will also be generated for the cartridge.
 
-The default output filename contains a unique ROM code. This is to make it easier to assign save data backups to the correct compilation ROM.
+The default output filename contains a unique ROM code. This is to make it easier to keep save data backups and their compilation ROMs together without confusion.
 
 ### Parameters
 
@@ -20,8 +20,8 @@ No command line arguments are required for creating a compilation, however there
 --toc {index,offset,hide}  changes the order of the table of contents (default: index)
 --no-wait                  don’t wait for user input when finished
 --no-log                   don’t write a log file
---export                   export individual SRAM files and ROM files from a previous compilation
---import-sram              import individual SRAM files into full 512 KB SRAM file of the given compilation
+--export                   export individual SRAM files and ROM files from an existing compilation
+--import-sram              import individual SRAM files into a 512 KB SRAM compilation file
 ```
 
 ## Compatibility
