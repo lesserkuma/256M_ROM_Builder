@@ -5,7 +5,7 @@
 import math, glob, re, os, datetime, time, hashlib, time, sys, argparse, struct
 
 # Configuration
-app_version = "0.6"
+app_version = "0.7"
 default_menu_title = "256M COLLECTION"
 default_file = "256MROMSET_<CODE>.gbc"
 
@@ -245,10 +245,14 @@ if args.export is False and args.import_sram is False:
 		if roms_added >= max_roms: break
 	if args.toc != "hide":
 		lprint("\n    | Title            | Offset    | Size     | Parameters  | SRAM Slot    ")
-		lprint("----+------------------+-----------+----------+-------------+--------------")
+		toc_sep = "----+------------------+-----------+----------+-------------+--------------"
+		lprint(toc_sep)
 		table_lines = dict(sorted(table_lines.items()))
+		c = 0
 		for table_line in table_lines.values():
 			lprint(table_line)
+			c += 1
+			if args.toc == "index" and c % roms_per_page == 0: lprint(toc_sep)
 	
 	# Add some metadata to menu ROM
 	c = 0
@@ -295,12 +299,12 @@ if args.export is False and args.import_sram is False:
 		temp = temp * 2
 	output[0x148] = header_size
 
-	# Fix checksums
-	output = FixChecksums(output)
-
 	# Pad to final ROM size
 	output = output + bytearray([0xFF] * (rom_size - len(output)))
 	
+	# Fix checksums
+	output = FixChecksums(output)
+
 	# Write Output to File(s)
 	(name, ext) = os.path.splitext(output_file)
 	lprint("\nBuild date: {:s}\nROM code: {:s}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), rom_code))

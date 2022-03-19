@@ -24,6 +24,11 @@ No command line arguments are required for creating a compilation, however there
 --import-sram              import individual SRAM files into a 512 KB SRAM compilation file
 ```
 
+### Limitations
+- up to 108 ROMs total
+- up to 16 ROMs that use SRAM
+- up to 32 MB combined file size (since ROMs need to be aligned in a very specific way, there may be less usable space)
+
 ## Compatibility
 Tested repro cartridges:
 - SD008-6810-512S with MSP55LV512
