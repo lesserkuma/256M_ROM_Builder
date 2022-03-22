@@ -19,22 +19,24 @@ addr_menu_param = 0x46FA
 addr_menu_text = 0x4EA0
 max_roms = 108
 roms_per_page = 11
+max_space = 0x2000000
 
 # Initialization
 rom_map = {}
 roms = []
 roms_added = 0
 uses_sram = False
-output = bytearray([0xFF] * 0x2000000)
+output = bytearray([0xFF] * max_space)
 output_sram = bytearray([0x00] * 0x80000)
 sram_slots_used = []
 sram_addr = []
-for i in range(0, 0x2000000, 0x200000): sram_addr.append(i)
+for i in range(0, max_space, 0x200000): sram_addr.append(i)
 now = datetime.datetime.now()
 log = ""
 v7001_values = {0x800000:0x00, 0x400000:0x80, 0x200000:0xC0, 0x100000:0xE0, 0x80000:0xF0, 0x40000:0xF8, 0x20000:0xFC, 0x10000:0xFE, 0x8000:0xFF}
 sram_sizes = [0, 0x800, 0x2000, 0x8000]
 logodata = bytearray(0x30)
+used_space = 0
 
 class ArgParseCustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter): pass
 def FixChecksums(buffer):
@@ -50,6 +52,18 @@ def FixChecksums(buffer):
 	buffer[0x14E] = checksum >> 8
 	buffer[0x14F] = checksum & 0xFF
 	return buffer
+
+def formatFileSize(size):
+	if size == 1:
+		return "{:d} Byte".format(size)
+	elif size < 1024:
+		return "{:d} Bytes".format(size)
+	elif size < 1024 * 1024:
+		val = size/1024
+		return "{:.1f} KB".format(val)
+	else:
+		val = size/1024/1024
+		return "{:.2f} MB".format(val)
 
 def logp(*args, **kwargs):
 	global log
@@ -89,6 +103,7 @@ if args.export is False and args.import_sram is False:
 	if menu_title != default_menu_title:
 		logp("Setting menu title to: {:s}\n".format(menu_title))
 	output[0:0x8000] = menu
+	used_space += 0x8000
 
 	# Load Game ROMs
 	files = glob.glob("./roms/*.*")
@@ -199,6 +214,7 @@ if args.export is False and args.import_sram is False:
 			if "offset" not in rom:
 				logp("Error: Can’t add {:s} because no SRAM slots are available or it would exceed the maximum size of the compilation".format(rom["title"]))
 			else:
+				used_space += rom["size"]
 				print("Added {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)), flush=True, end="\r")
 	logp("Added {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)))
 	
@@ -214,11 +230,12 @@ if args.export is False and args.import_sram is False:
 					break
 				else:
 					pos += rom["size"]
-					if pos > 0x2000000:
+					if pos > max_space:
 						break
 			if "offset" not in rom:
 				logp("Error: Can’t add {:s} (size: 0x{:X}) because it exceeds the maximum size of the compilation".format(rom["filename"], rom["size"]))
 			else:
+				used_space += rom["size"]
 				print("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)), flush=True, end="\r")
 	logp("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)))
 
@@ -252,10 +269,6 @@ if args.export is False and args.import_sram is False:
 		else:
 			v7002 += 0xF0
 			sram_id = ""
-		mapper_ok = " "
-		if v["mapper"] in ("None", "MBC2", "MBC3", "MBC5"): mapper_ok = " "
-		elif v["mapper"] == "MBC1": mapper_ok = "?"
-		else: mapper_ok = "X"
 		
 		pos = addr_menu_param + (roms_added * 4)
 		menu[pos+0] = x
@@ -266,7 +279,7 @@ if args.export is False and args.import_sram is False:
 			table_index = v["offset"]
 		else:
 			table_index = v["index"]
-		table_line = "{:3d} | {:16s} | 0x{:07X} | 0x{:06X} | {:5s} {:s}| {:02X}:{:02X}:{:02X}:{:02X} | {:4s}".format(v["index"]+1, v["title"], v["offset"], v["size"], v["mapper"], mapper_ok, v7000, v7001, v7002, x, sram_id)
+		table_line = "{:3d} | {:16s} | 0x{:07X} | 0x{:06X} | {:5s}  | {:02X}:{:02X}:{:02X}:{:02X} | {:4s}".format(roms_added+1, v["title"], v["offset"], v["size"], v["mapper"], v7000, v7001, v7002, x, sram_id)
 		table_lines[table_index] = table_line
 		roms_added += 1
 		if roms_added >= max_roms: break
@@ -320,7 +333,7 @@ if args.export is False and args.import_sram is False:
 	# Finalize ROM header
 	header_size = 0
 	temp = 0x8000
-	while temp < 0x2000000:
+	while temp < max_space:
 		if temp >= rom_size: break
 		header_size += 1
 		temp = temp * 2
@@ -334,7 +347,7 @@ if args.export is False and args.import_sram is False:
 
 	# Write Output to File(s)
 	(name, ext) = os.path.splitext(output_file)
-	logp("\nBuild date: {:s}\nROM code: {:s}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), rom_code))
+	logp("\nUsed space: {:s}\nBuild date: {:s}\nROM code: {:s}\n".format(formatFileSize(used_space), now.strftime('%Y-%m-%d %H:%M:%S'), rom_code))
 	if args.split is True:
 		for i in range(0, 4):
 			pos = 0x800000 * i

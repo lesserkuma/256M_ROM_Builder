@@ -36,6 +36,7 @@ No command line arguments are required for creating a compilation, however there
 - up to 108 ROMs total
 - up to 16 ROMs that use SRAM
 - up to 32 MB combined file size (since ROMs need to be aligned in a very specific way, there may be less usable space)
+- ROMs that use mappers other than MBC2, MBC3 or MBC5 may require a patch to work correctly
 
 ## Compatibility
 Tested repro cartridges:
