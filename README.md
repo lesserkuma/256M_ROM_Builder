@@ -20,7 +20,7 @@ No command line arguments are required for creating a compilation, however there
 --toc {index,offset,hide}  changes the order of the table of contents (default: index)
 --no-wait                  don’t wait for user input when finished
 --no-log                   don’t write a log file
---export                   export individual SRAM files and ROM files from an existing compilation
+--export-all               export individual SRAM files and ROM files from an existing compilation
 --import-sram              import individual SRAM files into a 512 KB SRAM compilation file
 ```
 

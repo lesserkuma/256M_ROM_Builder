@@ -81,7 +81,7 @@ parser.add_argument("--split", help="splits output files into 8 MB parts", actio
 parser.add_argument("--toc", help="changes the order of the table of contents", choices=["index", "offset", "hide"], type=str.lower, default="index")
 parser.add_argument("--no-wait", help="don’t wait for user input when finished", action="store_true", default=False)
 parser.add_argument("--no-log", help="don’t write a log file", action="store_true", default=False)
-parser.add_argument("--export", help="export individual SRAM files and ROM files from an existing compilation", action="store_true", default=False)
+parser.add_argument("--export-all", help="export individual SRAM files and ROM files from an existing compilation", action="store_true", default=False)
 parser.add_argument("--import-sram", help="import individual SRAM files into a 512 KB SRAM compilation file", action="store_true", default=False)
 parser.add_argument("file", help="sets the file name of the compilation ROM", nargs='?', default=default_file)
 args = parser.parse_args()
@@ -92,7 +92,7 @@ if output_file == "menu.bin":
 	if not args.no_wait: input("\nPress ENTER to exit.\n")
 	sys.exit(1)
 
-if args.export is False and args.import_sram is False:
+if args.export_all is False and args.import_sram is False:
 	# Load Menu ROM
 	if not os.path.exists("menu.bin"):
 		logp("Error: Menu ROM file not found!")
@@ -463,7 +463,7 @@ else: # ROM/SRAM Export/Import
 		if not os.path.exists(dir):
 			if args.import_sram:
 				logp("Error: No files found for importing!\nWill now instead export files to the “{:s}” directory.\nYou can then replace the individual .sav files and run the import again.".format(dir))
-				args.export = True
+				args.export_all = True
 				args.import_sram = False
 				try:
 					input("\nPress ENTER to continue or Ctrl+C to cancel.\n")
@@ -472,7 +472,7 @@ else: # ROM/SRAM Export/Import
 			os.mkdir(dir)
 		sram_file_game = "{:s}/#{:03d} {:s}.sav".format(dir, data["index"]+1, data["title"])
 		rom_file_game = "{:s}/#{:03d} {:s}{:s}{:s}".format(dir, data["index"]+1, data["title"], "#" if no_sram else "", ext)
-		if args.export:
+		if args.export_all:
 			logp("Exporting ROM #{:d} to “{:s}”".format(data["index"]+1, rom_file_game))
 			with open(rom_file_game, "wb") as f: f.write(compilation[data["offset"]:data["offset"]+data["size"]])
 			if sram is not None and "sram_id" in data:
