@@ -5,7 +5,7 @@
 import math, glob, re, os, datetime, time, hashlib, time, sys, argparse, struct
 
 # Configuration
-app_version = "0.7"
+app_version = "0.8"
 default_menu_title = "256M COLLECTION"
 default_file = "256MROMSET_<CODE>.gbc"
 
@@ -51,7 +51,7 @@ def FixChecksums(buffer):
 	buffer[0x14F] = checksum & 0xFF
 	return buffer
 
-def lprint(*args, **kwargs):
+def logp(*args, **kwargs):
 	global log
 	s = format(" ".join(map(str, args)))
 	print("{:s}".format(s))
@@ -60,7 +60,7 @@ def lprint(*args, **kwargs):
 ################################
 
 print("")
-lprint("256M ROM Builder v{:s}\nby Lesserkuma\n".format(app_version))
+logp("256M ROM Builder v{:s}\nby Lesserkuma\n".format(app_version))
 parser = argparse.ArgumentParser()
 parser.add_argument("--title", help="sets a custom menu title", type=str.upper, default=default_menu_title)
 parser.add_argument("--split", help="splits output files into 8 MB parts", action="store_true", default=False)
@@ -74,20 +74,20 @@ args = parser.parse_args()
 menu_title = args.title
 output_file = args.file
 if output_file == "menu.bin":
-	lprint("Error: The file must not be named menu.bin")
+	logp("Error: The file must not be named menu.bin")
 	if not args.no_wait: input("\nPress ENTER to exit.\n")
 	sys.exit(1)
 
 if args.export is False and args.import_sram is False:
 	# Load Menu ROM
 	if not os.path.exists("menu.bin"):
-		lprint("Error: Menu ROM file not found!")
+		logp("Error: Menu ROM file not found!")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 	with open("menu.bin", "rb") as f: menu = bytearray(f.read())
 	menu_title = re.sub(r"[^A-Z0-9 ]+", "", menu_title.upper()).strip()[:16]
 	if menu_title != default_menu_title:
-		lprint("Setting menu title to: {:s}\n".format(menu_title))
+		logp("Setting menu title to: {:s}\n".format(menu_title))
 	output[0:0x8000] = menu
 
 	# Load Game ROMs
@@ -99,6 +99,7 @@ if args.export is False and args.import_sram is False:
 		if len(buffer) > 0x800000: continue
 		if (hashlib.sha1(buffer[0x104:0x134]).digest() != bytearray([ 0x07, 0x45, 0xFD, 0xEF, 0x34, 0x13, 0x2D, 0x1B, 0x3D, 0x48, 0x8C, 0xFB, 0xDF, 0x03, 0x79, 0xA3, 0x9F, 0xD5, 0x4B, 0x4C ])): continue
 		
+		# Determine SRAM size
 		if buffer[0x149] > 0:
 			if buffer[0x149] < len(sram_sizes):
 				sram_size = sram_sizes[buffer[0x149]]
@@ -108,6 +109,22 @@ if args.export is False and args.import_sram is False:
 			sram_size = 512
 		else:
 			sram_size = 0
+		
+		# Determine mapper
+		mapper = buffer[0x147]
+		if mapper == 0x00: mapper = "None"
+		elif mapper in (0x01, 0x02, 0x03): mapper = "MBC1"
+		elif mapper == 0x06: mapper = "MBC2"
+		elif mapper in (0x10, 0x13): mapper = "MBC3"
+		elif mapper in (0x19, 0x1A, 0x1B, 0x1C, 0x1E): mapper = "MBC5"
+		elif mapper == 0x20: mapper = "MBC6"
+		elif mapper == 0x22: mapper = "MBC7"
+		elif mapper in (0x0B, 0x0D): mapper = "MMM01"
+		elif mapper == 0xFC: mapper = "GBD"
+		elif mapper == 0xFF: mapper = "HuC-1"
+		elif mapper == 0xFE: mapper = "HuC-3"
+		elif mapper == 0xFD: mapper = "TAMA5"
+		else: mapper = "Unknown"
 		
 		buffer_sram = None
 		if sram_size > 0:
@@ -146,6 +163,7 @@ if args.export is False and args.import_sram is False:
 		info["filename"] = file
 		info["title"] = game_title
 		info["sram_size"] = sram_size
+		info["mapper"] = mapper
 		info["size"] = len(buffer)
 		info["hash"] = hashlib.sha1(buffer[0:0x200]).digest()
 		buffer = FixChecksums(buffer)
@@ -154,7 +172,7 @@ if args.export is False and args.import_sram is False:
 			info["sram"] = buffer_sram
 		roms.append(info)
 
-	lprint("Found {:d} ROM(s)".format(len(roms)))
+	logp("Found {:d} ROM(s)\n".format(len(roms)))
 	# Re-order loaded ROMs by size
 	roms.sort(key=lambda item: item["size"])
 
@@ -179,8 +197,10 @@ if args.export is False and args.import_sram is False:
 						output_sram[sram_slot*0x8000:sram_slot*0x8000+len(rom["sram"])] = rom["sram"]
 					break
 			if "offset" not in rom:
-				lprint("Error: Can’t add {:s} because no SRAM slots are available or it would exceed the maximum size of the compilation".format(rom["title"]))
-	lprint("\nAdded {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)))
+				logp("Error: Can’t add {:s} because no SRAM slots are available or it would exceed the maximum size of the compilation".format(rom["title"]))
+			else:
+				print("Added {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)), flush=True, end="\r")
+	logp("Added {:d} ROM(s) that use SRAM to the compilation".format(len(sram_slots_used)))
 	
 	# Now fill up the rest
 	for rom in roms:
@@ -197,11 +217,13 @@ if args.export is False and args.import_sram is False:
 					if pos > 0x2000000:
 						break
 			if "offset" not in rom:
-				lprint("Error: Can’t add {:s} (size: 0x{:X}) because it exceeds the maximum size of the compilation".format(rom["filename"], rom["size"]))
-	lprint("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)))
+				logp("Error: Can’t add {:s} (size: 0x{:X}) because it exceeds the maximum size of the compilation".format(rom["filename"], rom["size"]))
+			else:
+				print("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)), flush=True, end="\r")
+	logp("Added {:d} ROM(s) that do not use SRAM to the compilation".format(len(rom_map) - len(sram_slots_used)))
 
 	if len(rom_map) == 0:
-		lprint("\nPlease place ROM files into the “roms” directory.")
+		logp("\nPlease place ROM files into the “roms” directory.")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 
@@ -226,10 +248,15 @@ if args.export is False and args.import_sram is False:
 			rom_map[k]["sram_id"] = sram_id
 			sram_id = "{:d}".format(sram_id)
 			if "sram" in v:
-				sram_id += " (imported)"
+				sram_id += " (sav)"
 		else:
 			v7002 += 0xF0
 			sram_id = ""
+		mapper_ok = " "
+		if v["mapper"] in ("None", "MBC2", "MBC3", "MBC5"): mapper_ok = " "
+		elif v["mapper"] == "MBC1": mapper_ok = "?"
+		else: mapper_ok = "X"
+		
 		pos = addr_menu_param + (roms_added * 4)
 		menu[pos+0] = x
 		menu[pos+1] = v7002 # multirom bank
@@ -239,20 +266,20 @@ if args.export is False and args.import_sram is False:
 			table_index = v["offset"]
 		else:
 			table_index = v["index"]
-		table_line = "{:3d} | {:16s} | 0x{:07X} | 0x{:06X} | {:02X}:{:02X}:{:02X}:{:02X} | {:4s}".format(v["index"]+1, v["title"], v["offset"], v["size"], v7000, v7001, v7002, x, sram_id)
+		table_line = "{:3d} | {:16s} | 0x{:07X} | 0x{:06X} | {:5s} {:s}| {:02X}:{:02X}:{:02X}:{:02X} | {:4s}".format(v["index"]+1, v["title"], v["offset"], v["size"], v["mapper"], mapper_ok, v7000, v7001, v7002, x, sram_id)
 		table_lines[table_index] = table_line
 		roms_added += 1
 		if roms_added >= max_roms: break
 	if args.toc != "hide":
-		lprint("\n    | Title            | Offset    | Size     | Parameters  | SRAM Slot    ")
-		toc_sep = "----+------------------+-----------+----------+-------------+--------------"
-		lprint(toc_sep)
+		logp   ("\n    | Title            | Offset    | Size     | Mapper | Parameters  | SRAM ID")
+		toc_sep = "----+------------------+-----------+----------+--------+-------------+---------"
+		logp(toc_sep)
 		table_lines = dict(sorted(table_lines.items()))
 		c = 0
 		for table_line in table_lines.values():
-			lprint(table_line)
+			logp(table_line)
 			c += 1
-			if args.toc == "index" and c % roms_per_page == 0: lprint(toc_sep)
+			if args.toc == "index" and c % roms_per_page == 0: logp(toc_sep)
 	
 	# Add some metadata to menu ROM
 	c = 0
@@ -307,21 +334,21 @@ if args.export is False and args.import_sram is False:
 
 	# Write Output to File(s)
 	(name, ext) = os.path.splitext(output_file)
-	lprint("\nBuild date: {:s}\nROM code: {:s}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), rom_code))
+	logp("\nBuild date: {:s}\nROM code: {:s}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), rom_code))
 	if args.split is True:
 		for i in range(0, 4):
 			pos = 0x800000 * i
 			if pos >= len(output): break
 			output_file = "{:s}_part{:d}{:s}".format(name, i+1, ext)
 			with open(output_file, "wb") as f: f.write(output[pos:pos+0x800000])
-			lprint("Compilation part {:d} saved to “{:s}”".format(i+1, output_file))
+			logp("Compilation part {:d} saved to “{:s}”".format(i+1, output_file))
 	else:
 		with open(output_file, "wb") as f: f.write(output)
-		lprint("Compilation ROM saved to “{:s}”".format(output_file))
+		logp("Compilation ROM saved to “{:s}”".format(output_file))
 		if output_sram != bytearray([0x00] * 0x80000):
 			fn = os.path.splitext(output_file)[0] + ".sav"
 			with open(fn, "wb") as f: f.write(output_sram)
-			lprint("Compilation SRAM saved to “{:s}”".format(fn))
+			logp("Compilation SRAM saved to “{:s}”".format(fn))
 
 ##############################
 else: # ROM/SRAM Export/Import
@@ -335,11 +362,11 @@ else: # ROM/SRAM Export/Import
 	# Load files
 	if file_compilation == default_file:
 		parser.print_help()
-		lprint("\nError: Compilation ROM file must be set via command line argument!")
+		logp("\nError: Compilation ROM file must be set via command line argument!")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 	elif not os.path.exists(file_compilation):
-		lprint("Error: Compilation ROM file not found!")
+		logp("Error: Compilation ROM file not found!")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 	else:
@@ -348,30 +375,30 @@ else: # ROM/SRAM Export/Import
 	
 	menu_version = compilation[0x14C]
 	if menu_version < 1:
-		lprint("Error: This Compilation ROM version is too old.")
+		logp("Error: This Compilation ROM version is too old.")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 	signature = compilation[0x150:0x165].decode("ascii", "ignore")
 	if signature != "256M ROM Builderby LK":
-		lprint("Error: Not a valid Compilation ROM. Please merge any split ROMs first.")
+		logp("Error: Not a valid Compilation ROM. Please merge any split ROMs first.")
 		if not args.no_wait: input("\nPress ENTER to exit.\n")
 		sys.exit(1)
 	build_date = compilation[0x168:0x17B].decode("ascii", "ignore")
 	rom_code = compilation[0x13F:0x143].decode("ascii", "ignore")
-	lprint("Compilation ROM loaded.")
-	lprint("\nMenu Version: {:d}\nBuild date: {:s}\nROM code: {:s}".format(menu_version, build_date, rom_code))
+	logp("Compilation ROM loaded.")
+	logp("\nMenu Version: {:d}\nBuild date: {:s}\nROM code: {:s}".format(menu_version, build_date, rom_code))
 
 	if os.path.exists(file_sram):
 		with open(file_sram, "rb") as f:
 			sram = bytearray(f.read())
 		if len(sram) != 0x80000:
-			lprint("Error: The compilation SRAM file must be 512 KB.")
+			logp("Error: The compilation SRAM file must be 512 KB.")
 			if not args.no_wait: input("\nPress ENTER to exit.\n")
 			sys.exit(1)
 	elif args.import_sram:
 		sram = bytearray(0x80000)
 	else:
-		lprint("SRAM file not found.")
+		logp("SRAM file not found.")
 	
 	c = 0
 	sram_roms = []
@@ -396,7 +423,7 @@ else: # ROM/SRAM Export/Import
 		
 		no_sram = ""
 		if data["offset"] >= len(compilation):
-			lprint("{:s} not found inside {:s}.".format(data["title"], args.file))
+			logp("{:s} not found inside {:s}.".format(data["title"], args.file))
 			continue
 		buffer = compilation[data["offset"]:data["offset"]+0x150]
 		if buffer[0x149] > 0:
@@ -422,7 +449,7 @@ else: # ROM/SRAM Export/Import
 		
 		if not os.path.exists(dir):
 			if args.import_sram:
-				lprint("Error: No files found for importing!\nWill now instead export files to the “{:s}” directory.\nYou can then replace the individual .sav files and run the import again.".format(dir))
+				logp("Error: No files found for importing!\nWill now instead export files to the “{:s}” directory.\nYou can then replace the individual .sav files and run the import again.".format(dir))
 				args.export = True
 				args.import_sram = False
 				try:
@@ -433,17 +460,17 @@ else: # ROM/SRAM Export/Import
 		sram_file_game = "{:s}/#{:03d} {:s}.sav".format(dir, data["index"]+1, data["title"])
 		rom_file_game = "{:s}/#{:03d} {:s}{:s}{:s}".format(dir, data["index"]+1, data["title"], "#" if no_sram else "", ext)
 		if args.export:
-			lprint("Exporting ROM #{:d} to “{:s}”".format(data["index"]+1, rom_file_game))
+			logp("Exporting ROM #{:d} to “{:s}”".format(data["index"]+1, rom_file_game))
 			with open(rom_file_game, "wb") as f: f.write(compilation[data["offset"]:data["offset"]+data["size"]])
 			if sram is not None and "sram_id" in data:
-				lprint("Exporting SRAM #{:d} to “{:s}”".format(data["sram_id"], sram_file_game))
+				logp("Exporting SRAM #{:d} to “{:s}”".format(data["sram_id"], sram_file_game))
 				with open(sram_file_game, "wb") as f: f.write(sram[data["sram_address"]:data["sram_address"]+data["sram_size"]])
 		elif args.import_sram:
 			if not os.path.exists(sram_file_game): continue
 			with open(sram_file_game, "rb") as f: sram_game = f.read(data["sram_size"])
 			sram[data["sram_address"]:data["sram_address"]+data["sram_size"]] = sram_game
 			with open(file_sram, "wb") as f: f.write(sram)
-			lprint("Importing “{:s}” into SRAM #{:d}".format(sram_file_game, data["sram_id"]))
+			logp("Importing “{:s}” into SRAM #{:d}".format(sram_file_game, data["sram_id"]))
 
 ################################
 if not args.no_log:

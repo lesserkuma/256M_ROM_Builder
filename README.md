@@ -15,7 +15,7 @@ The default output filename contains a unique ROM code. This is to make it easie
 No command line arguments are required for creating a compilation, however there are some optional ones that can tweak some things:
 
 ```
---title TITLE              sets a custom menu title
+--title "TITLE"            sets a custom menu title
 --split                    splits output files into 8 MB parts
 --toc {index,offset,hide}  changes the order of the table of contents (default: index)
 --no-wait                  don’t wait for user input when finished
