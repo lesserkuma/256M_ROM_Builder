@@ -26,7 +26,7 @@ No command line arguments are required for creating a compilation, however there
 
 #### How to
 - Export ROMs and save data files from an existing compilation
-  - With both `256MROMSET_xxxx.gbc` and the 512 KB `256MROMSET_xxxx.sav` file in one directory, run `256m_rom_builder --export 256MROMSET_xxxx.gbc`. This will create a new directory called `256MROMSET_xxxx` with all the individual ROMs and save data files.
+  - With both `256MROMSET_xxxx.gbc` and the 512 KB `256MROMSET_xxxx.sav` file in one directory, run `256m_rom_builder --export-all 256MROMSET_xxxx.gbc`. This will create a new directory called `256MROMSET_xxxx` with all the individual ROMs and save data files.
 
 - Import individual save data files into an existing compilation
   - With both `256MROMSET_xxxx.gbc` and the 512 KB `256MROMSET_xxxx.sav` file in one directory, run `256m_rom_builder --import-sram 256MROMSET_xxxx.gbc`. This will read all save data files from the directory called `256MROMSET_xxxx` and combine them back into the full compilation 512 KB save data file.
