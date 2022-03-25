@@ -2,7 +2,7 @@
 
 A tool for compiling a multi-game ROM compilation that can be written to X-in-1 Game Boy reproduction cartridges.
 
-The binary for Windows is available in the [Releases](https://github.com/lesserkuma/256M_ROM_Builder/releases) section.
+The Windows executable is available in the [Releases](https://github.com/lesserkuma/256M_ROM_Builder/releases) section.
 
 ## Usage
 
@@ -32,7 +32,7 @@ No command line arguments are required for creating a compilation, however there
   - With both `256MROMSET_xxxx.gbc` and the 512 KB `256MROMSET_xxxx.sav` file in one directory, run `256m_rom_builder --import-sram 256MROMSET_xxxx.gbc`. This will read all save data files from the directory called `256MROMSET_xxxx` and combine them back into the full compilation 512 KB save data file.
 
 
-### Limitations
+## Limitations
 - up to 108 ROMs total
 - up to 16 ROMs that use SRAM
 - up to 32 MB combined file size (since ROMs need to be aligned in a very specific way, there may be less usable space)
