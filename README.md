@@ -1,4 +1,4 @@
-# 256M ROM Builder (by Lesserkuma)
+﻿# 256M ROM Builder (by Lesserkuma)
 
 A tool for compiling a multi-game ROM compilation that can be written to X-in-1 Game Boy reproduction cartridges.
 
@@ -8,6 +8,8 @@ The Windows executable is available in the [Releases](https://github.com/lesserk
 
 Place your ROM files into the `roms` directory. The game title that is displayed in the menu will be read from the ROM headers. If you want to manually name the games for the menu, use this filename format: `#000 Name.gb`. If you want to manually disable SRAM access for a ROM, add another `#` character after the name, e.g. `#008 Mario Land 2#.gb`. If you also put save data files (.sav) into the `roms` directory, a full 512 KB .sav file will also be generated for the cartridge.
 
+The Chinese “zh” version of the menu also lets you use a custom title image loaded from `title.png` which must be an indexed 4-color PNG file with graphics that can fit in up to 35 8x8 tiles in 160×32 pixels. You also have the option to enter an optional subtitle using the `~` character, like so: `#001 Pokemon Crystal~口袋妖怪水晶.gbc`, or you can place an indexed 2-color PNG file next to your ROM with the same name and dimensions of 160×16 pixels.
+
 The default output filename contains a unique ROM code. This is to make it easier to keep save data backups and their compilation ROMs together without confusion.
 
 ### Command Line Arguments
@@ -15,11 +17,11 @@ The default output filename contains a unique ROM code. This is to make it easie
 No command line arguments are required for creating a compilation, however there are some optional ones that can tweak some things:
 
 ```
---title "TITLE"            sets a custom menu title
+--title "TITLE"            sets a custom menu title (only non-Chinese version)
 --split                    splits output files into 8 MB parts
 --toc {index,offset,hide}  changes the order of the table of contents (default: index)
---no-wait                  don�t wait for user input when finished
---no-log                   don�t write a log file
+--no-wait                  don’t wait for user input when finished
+--no-log                   don’t write a log file
 --export-all               export individual SRAM files and ROM files from an existing compilation
 --import-sram              import individual SRAM files into a 512 KB SRAM compilation file
 ```
