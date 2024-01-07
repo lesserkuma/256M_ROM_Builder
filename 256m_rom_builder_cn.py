@@ -6,9 +6,10 @@ import math, glob, re, os, datetime, time, hashlib, time, sys, argparse, struct
 from PIL import Image, ImageDraw, ImageFont
 
 # Configuration
-app_version = "0.9"
+app_version = "0.9_cn"
 #default_menu_title = "256M COLLECTION"
 default_file = "256MROMSET_<CODE>.gbc"
+#default_file = "256MROMSET_TEST.gbc"
 
 ################################
 
@@ -20,7 +21,7 @@ addr_menu_param = 0x4655
 addr_menu_text = 0x6F2F
 addr_palette = 0x4BA3
 max_roms = 108
-roms_per_page = 11
+roms_per_page = 10
 max_space = 0x2000000
 
 # Extra Menu ROM Parameters
@@ -172,6 +173,17 @@ if args.export_all is False and args.import_sram is False:
 	#	logp("Setting menu title to: {:s}\n".format(menu_title))
 	output[0:0x8000] = menu
 	used_space += 0x8000
+	
+	# Init Subtitles
+	c = " "
+	img = Image.new('1', (16, 16), 'white')
+	font = ImageFont.truetype(subtitle_font, 16)
+	draw = ImageDraw.Draw(img)
+	text_width = font.getbbox(c)[2]
+	draw.text(((16 - text_width) / 2, 0), c, fill='black', font=font)
+	hash = hashlib.sha1(bytearray(list(img.getdata()))).hexdigest()
+	glyphs[hash] = img2glyph(img)
+	glyphs_data += glyphs[hash]
 
 	# Load Game ROMs
 	files = glob.glob("./roms/*.*")
@@ -221,68 +233,55 @@ if args.export_all is False and args.import_sram is False:
 		fn = os.path.splitext(fp[1])[0]
 		
 		# Subtitle
-		if os.path.exists(fp[0] + "/" + fn + ".png"):
-			img = Image.open(fp[0] + "/" + fn + ".png").convert('1')
+		new_glyphs = {}
+		new_glyphs_map = []
+		subtitle_glyphs = []
+
+		fn_png = fp[0] + "/" + fn + ".png"
+		fn = fn.split("~")
+		game_subtitle = " "
+		if len(fn) > 1:
+			game_subtitle = fn[1]
+		game_subtitle = game_subtitle[:10]
+		
+		if os.path.exists(fn_png):
+			img = Image.open(fn_png).convert('1')
 			if img.size != (160, 16):
 				logp("\nError: “{:s}” must be 160×16 pixels in size!".format(fp[0] + "/" + fn + ".png"))
 				continue
-			pieces = {}
-			subtitle_glyphs = []
 			for i in range(0, 160, 16):
 				box = (i, 0, i+16, 16)
 				piece = img.crop(box)
 				hash = hashlib.sha1(bytearray(list(piece.getdata()))).hexdigest()
-				piece = img2glyph(piece)
-				pieces[hash] = piece
-				
-				j = 1
-				key = None
-				for k, v in glyphs.items():
-					if v == piece:
-						key = k
-						break
-					j += 1
-				
-				if key is None:
-					if len(glyphs) > 248:
-						logp("Error: No space left for adding subtitle glyph “{:s}”!".format(hash))
-					else:
-						glyphs[hash] = piece
-						glyphs_data += glyphs[hash]
-						subtitle_glyphs.append(len(glyphs))
-				else:
-					subtitle_glyphs.append(j)
+				new_glyphs[hash] = img2glyph(piece)
+				new_glyphs_map.append(hash)
 		
 		else:
-			fn = fn.split("~")
-			game_subtitle = " "
-			if len(fn) > 1:
-				game_subtitle = fn[1]
-			game_subtitle = game_subtitle[:10]
-			
 			for c in game_subtitle:
-				if c not in glyphs:
-					img = Image.new('1', (16, 16), 'white')
-					font = ImageFont.truetype(subtitle_font, 16)
-					draw = ImageDraw.Draw(img)
-					text_width = font.getbbox(c)[2]
-					draw.text(((16 - text_width) / 2, 0), c, fill='black', font=font)
-					glyph = img2glyph(img)
-					if glyph not in glyphs.values():
-						glyphs[c] = glyph
-						if len(glyphs) > 248:
-							logp("Error: No space left for adding subtitle glyph “{:s}”!".format(c))
-						else:
-							glyphs_data += glyphs[c]
-			subtitle_glyphs = []
-			for c in game_subtitle:
-				i = 1
-				for g in glyphs.keys():
-					if c == g: break
-					i += 1
-				subtitle_glyphs.append(i)
-			fn = fn[0]
+				img = Image.new('1', (16, 16), 'white')
+				font = ImageFont.truetype(subtitle_font, 16)
+				draw = ImageDraw.Draw(img)
+				text_width = font.getbbox(c)[2]
+				draw.text(((16 - text_width) / 2, 0), c, fill='black', font=font)
+				hash = hashlib.sha1(bytearray(list(img.getdata()))).hexdigest()
+				new_glyphs[hash] = img2glyph(img)
+				new_glyphs_map.append(hash)
 		
+		key = None
+		for k in new_glyphs_map:
+			v = new_glyphs[k]
+			if k in glyphs.keys():
+				j = list(glyphs.keys()).index(k) + 1
+				subtitle_glyphs.append(j)
+			else:
+				glyphs[k] = v
+				if len(glyphs_data) >= 0x1F00:
+					logp("Error: No space left for adding subtitle glyph “{:s}”!".format(hash))
+				else:
+					glyphs_data += glyphs[k]
+					subtitle_glyphs.append(len(glyphs))
+		
+		fn = fn[0]
 		m = re.search(r'^\#[0-9]+ (.+)', fn)
 		if m is not None:
 			game_title = m.group(1)[:16]
@@ -384,6 +383,14 @@ if args.export_all is False and args.import_sram is False:
 	table_lines = {}
 	rom_map = dict(sorted(rom_map.items(), key=lambda item: item[1]["index"]))
 	pos_subtitle_chars = addr_subtitle_chars
+	
+	len_subtitle_chars = 0
+	for k, v in rom_map.items():
+		if len_subtitle_chars + len(v["subtitle_glyphs"]) + 1 > 248:
+			logp("Error: No space left for adding subtitle characters of “{:s}”.".format(v["title"]))
+			v["subtitle_glyphs"] = [ 1 ]
+		len_subtitle_chars += len(v["subtitle_glyphs"])
+	
 	for k, v in rom_map.items():
 		pos = addr_menu_text + (roms_added * 16)
 		menu[pos:pos+16] = v["title"].ljust(16).encode("ascii")
