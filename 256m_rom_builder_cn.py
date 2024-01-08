@@ -9,7 +9,6 @@ from PIL import Image, ImageDraw, ImageFont
 app_version = "0.9_cn"
 #default_menu_title = "256M COLLECTION"
 default_file = "256MROMSET_<CODE>.gbc"
-#default_file = "256MROMSET_TEST.gbc"
 
 ################################
 
@@ -76,7 +75,7 @@ def img2title(img):
 	if len(output_data) < 0x230:
 		output_data += bytearray([0] * (0x230 - len(output_data)))
 	if len(output_data) > 0x230:
-		logp("\nError: Not enough space for adding the complete menu graphics from “title.png”!")
+		logp("\nError: Not enough space for adding the complete menu graphics from “title_cn.png”!")
 		output_data = output_data[:0x230]
 	return (output_data, map)
 
@@ -443,12 +442,12 @@ if args.export_all is False and args.import_sram is False:
 			if args.toc == "index" and c % roms_per_page == 0: logp(toc_sep)
 	
 	# Add title graphics
-	img_title = Image.open("title.png")
+	img_title = Image.open("title_cn.png")
 	pal = img_title.getpalette()
 	if pal is None:
-		logp("\nError: “title.png” must be an indexed PNG file!")
+		logp("\nError: “title_cn.png” must be an indexed PNG file!")
 	elif img_title.size != (160, 32):
-		logp("\nError: “title.png” must be 160×32 pixels in size!")
+		logp("\nError: “title_cn.png” must be 160×32 pixels in size!")
 	else:
 		pal1 = rgb888_to_gbc(red=pal[0], green=pal[1], blue=pal[2])
 		pal2 = rgb888_to_gbc(red=pal[3], green=pal[4], blue=pal[5])
