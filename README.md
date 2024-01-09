@@ -49,7 +49,7 @@ Tested repro cartridges:
 ROM and save data can be written and read using a [GBxCart RW v1.4+](https://www.gbxcart.com/) device by insideGadgets and the [FlashGBX](https://github.com/lesserkuma/FlashGBX) software.
 
 ## Thanks
-Thanks to Ausar for help with the Chinese version
+Thanks to [Ausar](https://github.com/ArcheyChen) for help with the Chinese version
 
 ## Screenshots
 
